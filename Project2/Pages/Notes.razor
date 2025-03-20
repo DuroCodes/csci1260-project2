@@ -5,18 +5,18 @@
 
 <div>
     <div class="card p-3 mb-4 shadow-sm">
-        <h5>Add a Note</h5>
+        <h5>@(IsEditing ? "Edit Note" : "Add a Note")</h5>
         <div class="mb-2">
-            <input class="form-control" @bind="_newNoteTitle" placeholder="Title"/>
+            <input class="form-control" @bind="_noteTitle" placeholder="Title"/>
         </div>
         <div class="mb-2">
-            <textarea class="form-control" @bind="_newNoteContent" placeholder="Content"></textarea>
+            <textarea class="form-control" @bind="_noteContent" placeholder="Content"></textarea>
         </div>
 
         <div class="mb-3">
             <label class="form-label">References:</label>
             <div class="d-flex flex-wrap gap-2">
-                @foreach (var reference in _newNoteReferences)
+                @foreach (var reference in _noteReferences)
                 {
                     <span class="badge bg-primary p-2">
                         @reference.Name (@reference.Type)
@@ -34,10 +34,14 @@
                     <option value="@reference.Id">@reference.Name (@reference.Type)</option>
                 }
             </select>
-            <button class="btn btn-outline-secondary" @onclick="AddReferenceToNewNote">Add</button>
+            <button class="btn btn-outline-secondary" @onclick="AddReferenceToNote">Add</button>
         </div>
 
-        <button class="btn btn-success" @onclick="AddNote">Add Note</button>
+        <button class="btn btn-success" @onclick="SaveNote">@(IsEditing ? "Update Note" : "Add Note")</button>
+        @if (IsEditing)
+        {
+            <button class="btn btn-secondary mt-2" @onclick="CancelEdit">Cancel</button>
+        }
     </div>
 
     <ul class="list-group">
@@ -45,7 +49,11 @@
         {
             <li class="list-group-item d-flex justify-content-between align-items-start">
                 <div class="ms-2">
-                    <h5>@note.Title</h5>
+                    <div>
+                        <h5 class="mb-1">@note.Title</h5>
+                        <button class="btn btn-primary btn-sm" @onclick="() => EditNote(note)">Edit</button>
+                        <button class="btn btn-danger btn-sm ms-2" @onclick="() => DeleteNote(note.Id)">Delete</button>
+                    </div>
                     <p>@note.Content</p>
                     <div class="d-flex flex-wrap gap-2">
                         @foreach (var reference in note.References)
@@ -56,7 +64,6 @@
                         }
                     </div>
                 </div>
-                <button class="btn btn-danger btn-sm" @onclick="() => DeleteNote(note.Id)">Delete</button>
             </li>
         }
     </ul>
@@ -66,10 +73,13 @@
     private List<Note> _notes = [];
     private List<Reference> _allReferences = [];
 
-    private string _newNoteTitle = "";
-    private string _newNoteContent = "";
+    private string _noteTitle = "";
+    private string _noteContent = "";
     private int? _selectedReferenceId;
-    private List<Reference> _newNoteReferences = [];
+    private List<Reference> _noteReferences = [];
+    private int? _editingNoteId = null;
+
+    private bool IsEditing => _editingNoteId.HasValue;
 
     protected override async Task OnInitializedAsync()
     {
@@ -89,18 +99,24 @@
             .Select(i => new Reference(i.Name.GetHashCode(), i.Name, "Item")));
     }
 
-    private async Task AddNote()
+    private async Task SaveNote()
     {
-        if (string.IsNullOrWhiteSpace(_newNoteTitle) || string.IsNullOrWhiteSpace(_newNoteContent))
+        if (string.IsNullOrWhiteSpace(_noteTitle) || string.IsNullOrWhiteSpace(_noteContent))
             return;
 
-        var newNote = new Note(0, _newNoteTitle, _newNoteContent, _newNoteReferences);
-        await NotesService.AddNoteAsync(newNote);
-        _notes = await NotesService.GetNotesAsync();
+        if (IsEditing)
+        {
+            var updatedNote = new Note(_editingNoteId.Value, _noteTitle, _noteContent, _noteReferences);
+            await NotesService.UpdateNoteAsync(updatedNote);
+        }
+        else
+        {
+            var newNote = new Note(0, _noteTitle, _noteContent, _noteReferences);
+            await NotesService.AddNoteAsync(newNote);
+        }
 
-        _newNoteTitle = "";
-        _newNoteContent = "";
-        _newNoteReferences = [];
+        _notes = await NotesService.GetNotesAsync();
+        ClearNoteForm();
     }
 
     private async Task DeleteNote(int id)
@@ -109,15 +125,33 @@
         _notes = await NotesService.GetNotesAsync();
     }
 
-    private void AddReferenceToNewNote()
+    private void EditNote(Note note)
+    {
+        _editingNoteId = note.Id;
+        _noteTitle = note.Title;
+        _noteContent = note.Content;
+        _noteReferences = new List<Reference>(note.References);
+    }
+
+    private void CancelEdit() => ClearNoteForm();
+
+    private void ClearNoteForm()
+    {
+        _editingNoteId = null;
+        _noteTitle = "";
+        _noteContent = "";
+        _noteReferences = [];
+    }
+
+    private void AddReferenceToNote()
     {
         if (!_selectedReferenceId.HasValue) return;
 
         var reference = _allReferences.FirstOrDefault(r => r.Id == _selectedReferenceId);
-        if (reference != null && !_newNoteReferences.Contains(reference)) _newNoteReferences.Add(reference);
+        if (reference != null && !_noteReferences.Contains(reference)) _noteReferences.Add(reference);
     }
 
-    private void RemoveReference(Reference reference) => _newNoteReferences.Remove(reference);
+    private void RemoveReference(Reference reference) => _noteReferences.Remove(reference);
 
     private string GetReferenceUrl(Reference reference) =>
         reference.Type == "Character" ? $"/characters/{reference.Name}" : $"/items/{reference.Name}";
