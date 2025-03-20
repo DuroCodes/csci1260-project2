@@ -5,7 +5,7 @@ namespace Project2.Services;
 
 using System.Text.Json;
 
-public class NotesService(IJSRuntime jsRuntime, CharacterService characterService, ItemService itemService)
+public class NotesService(IJSRuntime jsRuntime)
 {
     private const string StorageKey = "notes";
 
