@@ -28,7 +28,7 @@ public class NotesService(IJSRuntime jsRuntime, CharacterService characterServic
     {
         var notes = await GetNotesAsync();
         var newId = notes.Count > 0 ? notes.Max(n => n.Id) + 1 : 1;
-        notes.Add(note with { Id = newId });
+        notes.Add(note with { Id = newId }); // `with` since `Note` is a record and therefore immutable
         await SaveNotesAsync(notes);
     }
 
