@@ -1,0 +1,125 @@
+@page "/notes"
+@inject NotesService NotesService
+
+<h1>Notes</h1>
+
+<div>
+    <div class="card p-3 mb-4 shadow-sm">
+        <h5>Add a Note</h5>
+        <div class="mb-2">
+            <input class="form-control" @bind="_newNoteTitle" placeholder="Title"/>
+        </div>
+        <div class="mb-2">
+            <textarea class="form-control" @bind="_newNoteContent" placeholder="Content"></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">References:</label>
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var reference in _newNoteReferences)
+                {
+                    <span class="badge bg-primary p-2">
+                        @reference.Name (@reference.Type)
+                        <button type="button" class="btn-close ms-2" @onclick="() => RemoveReference(reference)"></button>
+                    </span>
+                }
+            </div>
+        </div>
+
+        <div class="input-group mb-3">
+            <select class="form-select" @bind="_selectedReferenceId">
+                <option value="">Select a reference</option>
+                @foreach (var reference in _allReferences)
+                {
+                    <option value="@reference.Id">@reference.Name (@reference.Type)</option>
+                }
+            </select>
+            <button class="btn btn-outline-secondary" @onclick="AddReferenceToNewNote">Add</button>
+        </div>
+
+        <button class="btn btn-success" @onclick="AddNote">Add Note</button>
+    </div>
+
+    <ul class="list-group">
+        @foreach (var note in _notes)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+                <div class="ms-2">
+                    <h5>@note.Title</h5>
+                    <p>@note.Content</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var reference in note.References)
+                        {
+                            <a href="@GetReferenceUrl(reference)" class="badge bg-secondary p-2 text-decoration-none">
+                                @reference.Name (@reference.Type)
+                            </a>
+                        }
+                    </div>
+                </div>
+                <button class="btn btn-danger btn-sm" @onclick="() => DeleteNote(note.Id)">Delete</button>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    private List<Note> _notes = [];
+    private List<Reference> _allReferences = [];
+
+    private string _newNoteTitle = "";
+    private string _newNoteContent = "";
+    private int? _selectedReferenceId;
+    private List<Reference> _newNoteReferences = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _notes = await NotesService.GetNotesAsync();
+        LoadAllReferences();
+    }
+
+    private void LoadAllReferences()
+    {
+        _allReferences = CharacterService.GetCharacterGroups()
+            .SelectMany(group => group)
+            .Select(c => new Reference(c.Name.GetHashCode(), c.Name, "Character"))
+            .ToList();
+
+        _allReferences.AddRange(ItemService.GetItemGroups()
+            .SelectMany(group => group)
+            .Select(i => new Reference(i.Name.GetHashCode(), i.Name, "Item")));
+    }
+
+    private async Task AddNote()
+    {
+        if (string.IsNullOrWhiteSpace(_newNoteTitle) || string.IsNullOrWhiteSpace(_newNoteContent))
+            return;
+
+        var newNote = new Note(0, _newNoteTitle, _newNoteContent, _newNoteReferences);
+        await NotesService.AddNoteAsync(newNote);
+        _notes = await NotesService.GetNotesAsync();
+
+        _newNoteTitle = "";
+        _newNoteContent = "";
+        _newNoteReferences = [];
+    }
+
+    private async Task DeleteNote(int id)
+    {
+        await NotesService.DeleteNoteAsync(id);
+        _notes = await NotesService.GetNotesAsync();
+    }
+
+    private void AddReferenceToNewNote()
+    {
+        if (!_selectedReferenceId.HasValue) return;
+
+        var reference = _allReferences.FirstOrDefault(r => r.Id == _selectedReferenceId);
+        if (reference != null && !_newNoteReferences.Contains(reference)) _newNoteReferences.Add(reference);
+    }
+
+    private void RemoveReference(Reference reference) => _newNoteReferences.Remove(reference);
+
+    private string GetReferenceUrl(Reference reference) =>
+        reference.Type == "Character" ? $"/characters/{reference.Name}" : $"/items/{reference.Name}";
+
+}

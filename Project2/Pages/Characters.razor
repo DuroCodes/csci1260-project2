@@ -1,0 +1,42 @@
+@page "/characters"
+@page "/characters/{character}"
+
+<h1>Characters</h1>
+
+@if (Character is null)
+{
+    @foreach (var group in CharacterService.GetCharacterGroups())
+    {
+        <h2>@group.Key</h2>
+        <ul>
+            @foreach (var character in group)
+            {
+                <li>
+                    <a href="characters/@character.Name">@character.Name</a>
+                </li>
+            }
+        </ul>
+    }
+}
+else if (CharacterService.TryGetCharacter(Character, out var details))
+{
+    <h2>@Character</h2>
+    <img class="character-image" src="@details!.Image" alt="@Character"/>
+    <dl>
+        <dt>Description</dt>
+        <dd>@details.Description</dd>
+        <dt>Health</dt>
+        <dd>@details.Health</dd>
+        <dt>Damage</dt>
+        <dd>@details.Damage</dd>
+    </dl>
+}
+else
+{
+    <p>Character not found.</p>
+}
+
+
+@code {
+    [Parameter] public string? Character { get; set; }
+}

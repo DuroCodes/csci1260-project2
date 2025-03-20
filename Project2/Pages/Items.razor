@@ -1,0 +1,38 @@
+@page "/items"
+@page "/items/{item}"
+
+<h1>Items</h1>
+
+@if (Item is null)
+{
+    @foreach (var group in ItemService.GetItemGroups())
+    {
+        <h2>@group.Key</h2>
+        <ul>
+            @foreach (var item in group)
+            {
+                <li>
+                    <a href="items/@item.Name">@item.Name</a>
+                </li>
+            }
+        </ul>
+    }
+}
+else if (ItemService.TryGetItem(Item, out var details))
+{
+    <h2>@Item</h2>
+    <img class="character-image" src="@details!.Image" alt="@Item"/>
+    <dl>
+        <dt>Description</dt>
+        <dd>@details.Description</dd>
+    </dl>
+}
+else
+{
+    <p>Character not found.</p>
+}
+
+
+@code {
+    [Parameter] public string? Item { get; set; }
+}
