@@ -130,7 +130,7 @@
         _editingNoteId = note.Id;
         _noteTitle = note.Title;
         _noteContent = note.Content;
-        _noteReferences = new List<Reference>(note.References);
+        _noteReferences = [..note.References];
     }
 
     private void CancelEdit() => ClearNoteForm();
